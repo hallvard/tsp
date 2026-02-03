@@ -2,8 +2,6 @@ package no.hal.tsp.protocol;
 
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import java.util.concurrent.CompletableFuture;
-import no.hal.tsp.model.GetChildrenParams;
-import no.hal.tsp.model.OpenResourceParams;
 import no.hal.tsp.model.TreeNode;
 
 /**
@@ -13,6 +11,14 @@ import no.hal.tsp.model.TreeNode;
 public interface TreeStructureProtocol {
 
   /**
+   * Parameters for openResource request.
+   */
+  record OpenResourceParams(
+      String documentUri,
+      int depth
+  ) {}
+
+  /**
    * Retrieve the root nodes of the tree for a given document.
    * 
    * @param params Parameters containing the document URI
@@ -20,6 +26,14 @@ public interface TreeStructureProtocol {
    */
   @JsonRequest("tree/openResource")
   CompletableFuture<TreeNode[]> openResource(OpenResourceParams params);
+
+  /**
+   * Parameters for getChildren request.
+   */
+  record GetChildrenParams(
+      String treeNodeId,
+      int depth
+  ) {}
 
   /**
    * Retrieve the root nodes of the tree for a given document.

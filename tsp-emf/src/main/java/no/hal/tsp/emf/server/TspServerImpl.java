@@ -1,8 +1,6 @@
-package no.hal.tsp.server;
+package no.hal.tsp.emf.server;
 
 import java.util.concurrent.CompletableFuture;
-import no.hal.tsp.model.GetChildrenParams;
-import no.hal.tsp.model.OpenResourceParams;
 import no.hal.tsp.model.TreeNode;
 import no.hal.tsp.protocol.TreeStructureProtocol;
 
@@ -19,13 +17,13 @@ public class TspServerImpl implements TreeStructureProtocol {
 
   TreeNode child1 = new TreeNode(
       "node-1",
-      "class",
+      "container",
       "ecore:EClass",
       "ExampleClass");
 
   TreeNode child2 = new TreeNode(
       "node-2",
-      "attribute",
+      "leaf",
       "ecore:EAttribute",
       "exampleAttribute");
 
@@ -36,11 +34,26 @@ public class TspServerImpl implements TreeStructureProtocol {
 
   @Override
   public CompletableFuture<TreeNode[]> getChildren(GetChildrenParams params) {
-    switch (params.getTreeNodeId()) {
-      case "root-1":
-        return CompletableFuture.completedFuture(new TreeNode[]{ child1, child2 });
-      default:
-        return CompletableFuture.completedFuture(new TreeNode[0]);
+    return CompletableFuture.completedFuture(getChildrenN(params.treeNodeId(), params.depth()));
+  }
+
+  private TreeNode[] getChildrenN(String treeNodeId, int depth) {
+    var children = getChildren1(treeNodeId);
+    if (depth > 0) {
+      for (int i = 0; i < children.length; i++) {
+        var child = children[i];
+        var childChildren = getChildrenN(child.id(), depth - 1);
+        children[i] = new TreeNode(child.id(), child.type(), child.semanticType(), child.label(), childChildren);
+      }
     }
+    return children;
+  }
+
+  private TreeNode[] getChildren1(String treeNodeId) {
+    return switch (treeNodeId) {
+      case null -> new TreeNode[] { root };
+      case "root-1" -> new TreeNode[]{ child1, child2 };
+      default -> new TreeNode[0];
+    };
   }
 }

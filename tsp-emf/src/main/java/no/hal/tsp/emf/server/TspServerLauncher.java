@@ -1,4 +1,4 @@
-package no.hal.tsp.server;
+package no.hal.tsp.emf.server;
 
 import java.io.InputStream;
 import java.io.OutputStream;

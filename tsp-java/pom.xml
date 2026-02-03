@@ -5,23 +5,25 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>no.hal.tsp</groupId>
-    <artifactId>tsp-emf</artifactId>
+    <artifactId>tsp-java</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
 
-    <name>TSP EMF</name>
-    <description>Tree Structure Protocol EMF Implementation</description>
+    <name>TSP Java</name>
+    <description>Tree Structure Protocol Java specification</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <lsp4j.version>0.23.1</lsp4j.version>
     </properties>
 
     <dependencies>
+        <!-- LSP4J for JSON-RPC protocol implementation -->
         <dependency>
-            <groupId>no.hal.tsp</groupId>
-            <artifactId>tsp-java</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <groupId>org.eclipse.lsp4j</groupId>
+            <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
+            <version>${lsp4j.version}</version>
         </dependency>
 
         <!-- Logging -->
@@ -29,14 +31,6 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.9</version>
-        </dependency>
-
-        <!-- Testing -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.10.1</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

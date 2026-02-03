@@ -1,21 +1,20 @@
-package no.hal.tsp.server;
+package no.hal.tsp.emf.server;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
+import no.hal.tsp.model.TreeNode;
+import no.hal.tsp.protocol.TreeStructureProtocol;
+import no.hal.tsp.protocol.TreeStructureProtocol.GetChildrenParams;
+import no.hal.tsp.protocol.TreeStructureProtocol.OpenResourceParams;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import no.hal.tsp.model.GetChildrenParams;
-import no.hal.tsp.model.OpenResourceParams;
-import no.hal.tsp.model.TreeNode;
-import no.hal.tsp.protocol.TreeStructureProtocol;
 
 /**
  * Test for the TSP Server Launcher.
@@ -80,16 +79,16 @@ class TspServerLauncherTest {
         
         // Verify we got root nodes
         assertNotNull(rootNodes);
-        assertTrue(rootNodes.length > 0, "Should have at least one root node");
+        assertEquals(1, rootNodes.length, "Should have one root node");
         
         TreeNode root = rootNodes[0];
-        assertEquals("root-1", root.getId());
-        assertEquals("container", root.getType());
-        assertEquals("ecore:EPackage", root.getSemanticType());
-        assertEquals("Example Package", root.getLabel());
+        assertEquals("root-1", root.id());
+        assertEquals("container", root.type());
+        assertEquals("ecore:EPackage", root.semanticType());
+        assertEquals("Example Package", root.label());
         
         // Call getChildren on the root with depth = 0
-        GetChildrenParams childrenParams = new GetChildrenParams(root.getId(), 0);
+        GetChildrenParams childrenParams = new GetChildrenParams(root.id(), 0);
         CompletableFuture<TreeNode[]> childrenFuture = client.getChildren(childrenParams);
         
         TreeNode[] children = childrenFuture.get(5, TimeUnit.SECONDS);
@@ -99,15 +98,15 @@ class TspServerLauncherTest {
         assertEquals(2, children.length, "Root should have 2 children");
         
         // Verify first child
-        assertEquals("node-1", children[0].getId());
-        assertEquals("class", children[0].getType());
-        assertEquals("ecore:EClass", children[0].getSemanticType());
-        assertEquals("ExampleClass", children[0].getLabel());
+        assertEquals("node-1", children[0].id());
+        assertEquals("container", children[0].type());
+        assertEquals("ecore:EClass", children[0].semanticType());
+        assertEquals("ExampleClass", children[0].label());
         
         // Verify second child
-        assertEquals("node-2", children[1].getId());
-        assertEquals("attribute", children[1].getType());
-        assertEquals("ecore:EAttribute", children[1].getSemanticType());
-        assertEquals("exampleAttribute", children[1].getLabel());
+        assertEquals("node-2", children[1].id());
+        assertEquals("leaf", children[1].type());
+        assertEquals("ecore:EAttribute", children[1].semanticType());
+        assertEquals("exampleAttribute", children[1].label());
     }
 }

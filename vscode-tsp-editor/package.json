@@ -55,6 +55,7 @@
     "typescript-eslint": "^8.52.0"
   },
   "dependencies": {
-    "@vscode-elements/elements": "^2.4.0"
+    "@vscode-elements/elements": "^2.4.0",
+    "vscode-jsonrpc": "^8.2.1"
   }
 }
