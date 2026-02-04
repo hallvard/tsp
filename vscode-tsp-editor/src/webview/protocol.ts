@@ -19,7 +19,7 @@ export interface GetChildrenParams {
     depth: number;
 }
 
-export type TreeProtocolRequest<M extends string, P> = {
+export type TreeProtocolMessage<M extends string, P> = {
     jsonrpc: '2.0';
     method: M;
     params: P;
@@ -27,19 +27,21 @@ export type TreeProtocolRequest<M extends string, P> = {
 };
 
 export namespace TreeProtocol {
-    export function openResource(params: OpenResourceParams): TreeProtocolRequest<'tree/openResource', OpenResourceParams> {
-        return createTreeProtocolRequest<'tree/openResource', OpenResourceParams>('tree/openResource', params);
+    export function openResource(params: OpenResourceParams): TreeProtocolMessage<'tree/openResource', OpenResourceParams> {
+        return createTreeProtocolMessage<'tree/openResource', OpenResourceParams>('tree/openResource', params);
     }
-    export function getChildren(params: GetChildrenParams): TreeProtocolRequest<'tree/getChildren', GetChildrenParams> {
-        return createTreeProtocolRequest<'tree/getChildren', GetChildrenParams>('tree/getChildren', params);
+    export function getChildren(params: GetChildrenParams): TreeProtocolMessage<'tree/getChildren', GetChildrenParams> {
+        return createTreeProtocolMessage<'tree/getChildren', GetChildrenParams>('tree/getChildren', params);
     }
 }
 
-export function createTreeProtocolRequest<M extends string, P>(method: M, params: P): TreeProtocolRequest<M, P> {
+let nextRequestId = Date.now();
+
+function createTreeProtocolMessage<M extends string, P>(method: M, params: P): TreeProtocolMessage<M, P> {
   return {
     jsonrpc: '2.0',
     method,
     params,
-    id: Date.now(), // Simple ID generation
+    id: nextRequestId++, // Simple ID generation
   };
 }

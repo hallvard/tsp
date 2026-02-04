@@ -89,19 +89,19 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
             ...message.params,
             documentUri: document.uri.toString()
           };
-          console.log('Forwarding request to TSP server:' +
-            message.method + ' ' + paramsWithDocumentUri.documentUri);
+          console.log('Forwarding request to TSP server:',
+            message.method, " ", paramsWithDocumentUri.documentUri);
           const result = await tspConnection.sendRequest(message.method, paramsWithDocumentUri);
           // Send response back to webview
-          console.log('Forwarding response to webview:' +
-            message.method + " " + JSON.stringify(result));
+          console.log('Forwarding response to webview:',
+            message.method, " ", JSON.stringify(result));
           webviewPanel.webview.postMessage({
             jsonrpc: '2.0',
             id: message.id,
             result: result
           });
         } catch (error) {
-          console.log('Error forwarding request to TSP server:' + String(error));
+          console.log('Error forwarding request to TSP server:', String(error));
           webviewPanel.webview.postMessage({
             jsonrpc: '2.0',
             id: message.id,
@@ -231,8 +231,7 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
 </head>
 <body>
     <h1>EMF Model Tree</h1>
-    <vscode-tree id="tree-view" arrows indent-guides>
-        <vscode-tree-item text="Loading..."></vscode-tree-item>
+    <vscode-tree id="tree-view">
     </vscode-tree>
 
     <script type="module" nonce="${nonce}" src="${elementsUri}"></script>
