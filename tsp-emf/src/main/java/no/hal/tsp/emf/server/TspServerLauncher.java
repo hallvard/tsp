@@ -18,7 +18,10 @@ public class TspServerLauncher {
 
     public static void main(String[] args) {
         // Configure logging
-        LogManager.getLogManager().getLogger("").setLevel(Level.SEVERE);
+        LogManager.getLogManager()
+            .getLogger("")
+            .setLevel(Level.SEVERE);
+        LOG.setLevel(Level.INFO);
         
         if (args.length > 0) {
             LOG.info("TSP Server started for document: " + args[0]);
