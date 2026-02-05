@@ -230,10 +230,9 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     </style>
 </head>
 <body>
-    <h1>EMF Model Tree</h1>
     <vscode-tree id="tree-view">
+        <vscode-tree-item branch="false">Loading...</vscode-tree-item>
     </vscode-tree>
-
     <script type="module" nonce="${nonce}" src="${elementsUri}"></script>
     <script nonce="${nonce}">
         window.documentUri = ${JSON.stringify(documentUri.toString())};
