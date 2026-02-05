@@ -8,7 +8,7 @@ import no.hal.tsp.model.TreeNode;
  * Tree Structure Protocol interface.
  * Defines the protocol methods for tree-based editors.
  */
-public interface TreeStructureProtocol {
+public interface TreeServerProtocol {
 
   /**
    * Parameters for openResource request.
@@ -31,6 +31,7 @@ public interface TreeStructureProtocol {
    * Parameters for getChildren request.
    */
   record GetChildrenParams(
+      String documentUri,
       String treeNodeId,
       int depth
   ) {}
