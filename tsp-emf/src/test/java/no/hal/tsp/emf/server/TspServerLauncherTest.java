@@ -7,11 +7,11 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import no.hal.tsp.launcher.TspServerLauncher;
+import no.hal.tsp.launcher.ServerProtocolLauncher;
 import no.hal.tsp.model.TreeNode;
 import no.hal.tsp.protocol.TreeServerProtocol;
 import no.hal.tsp.protocol.TreeServerProtocol.GetChildrenParams;
-import no.hal.tsp.protocol.TreeServerProtocol.OpenResourceParams;
+import no.hal.tsp.protocol.DocumentServerProtocol.OpenDocumentParams;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +37,7 @@ class TspServerLauncherTest {
     clientInput = new PipedInputStream(serverOutput);
 
     // Start server in a separate thread
-    var launcher = new TspServerLauncher(new TspServerImpl());
+    var launcher = new ServerProtocolLauncher<TreeServerProtocol>(TreeServerProtocol.class, new AbstractTspServerImpl());
     serverThread = new Thread(() -> {
       launcher.startServer(serverInput, serverOutput);
     });
@@ -74,17 +74,18 @@ class TspServerLauncherTest {
   @Test
   void testOpenResourceAndGetChildren() throws Exception {
     // Call openResource with depth = 0
-    OpenResourceParams openParams = new OpenResourceParams(getClass().getResource("/models/Tournament.ecore").toString(), 0);
-    CompletableFuture<TreeNode[]> openFuture = client.openResource(openParams);
-
-    TreeNode[] rootNodes = openFuture.get(5, TimeUnit.SECONDS);
+    var documentUri = getClass().getResource("/models/Tournament.ecore").toString();
+    var openParams = new OpenDocumentParams(documentUri);
+    client.openDocument(openParams).get(5, TimeUnit.SECONDS);
+    var getChildrenParams = new GetChildrenParams(documentUri, null, 0);
+    TreeNode[] rootNodes = client.getChildren(getChildrenParams).get(5, TimeUnit.SECONDS);
 
     // Verify we got root nodes
     assertNotNull(rootNodes);
     assertEquals(1, rootNodes.length, "Should have one root node");
 
     TreeNode root = rootNodes[0];
-    assertEquals("eObject", root.type());
+    assertEquals("object", root.type());
     assertEquals("ecore:EPackage", root.semanticType());
     assertEquals("EPackage", root.label());
 
