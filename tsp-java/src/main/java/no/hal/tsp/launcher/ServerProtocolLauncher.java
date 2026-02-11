@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import no.hal.tsp.protocol.DocumentClientProtocol;
 import no.hal.tsp.protocol.DocumentServerProtocol;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 
@@ -32,17 +33,23 @@ public class ServerProtocolLauncher<SP extends DocumentServerProtocol> {
         .setOutput(out)
         .create();
 
+    if (server instanceof DocumentClientProtocol.Consumer dcpConsumer) {
+      Launcher<DocumentClientProtocol> clientLauncher = new Launcher.Builder<DocumentClientProtocol>()
+          .setLocalService(new Object()) // No local service needed for client
+          .setRemoteInterface(DocumentClientProtocol.class)
+          .setInput(in)
+          .setOutput(out)
+          .create();
+      dcpConsumer.setDocumentClient(clientLauncher.getRemoteProxy());
+    }
+
     launcher.startListening();
     try {
-      launcher.getRemoteProxy();
+      // launcher.getRemoteProxy();
       Thread.currentThread().join();
     } catch (InterruptedException e) {
       LOG.log(Level.SEVERE, "Server interrupted", e);
     }
-  }
-
-  public void startServer() {
-    startServer(System.in, System.out);
   }
 
   public static void main(String[] args) {
@@ -69,7 +76,7 @@ public class ServerProtocolLauncher<SP extends DocumentServerProtocol> {
       }
       var dsp = (DocumentServerProtocol) dspImplClass.getDeclaredConstructor().newInstance();
       new ServerProtocolLauncher((Class<DocumentServerProtocol>) dspClass, dsp)
-          .startServer();
+          .startServer(System.in, System.out);
     } catch (Exception e) {
       LOG.log(Level.SEVERE, "Failed to instantiate DSP Server Implementation", e);
       e.printStackTrace(System.err);

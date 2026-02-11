@@ -4,8 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import no.hal.tsp.launcher.ServerProtocolLauncher;
+import no.hal.tsp.protocol.DocumentClientProtocol;
 import no.hal.tsp.protocol.DocumentServerProtocol;
 import org.eclipse.emf.common.command.BasicCommandStack;
+import org.eclipse.emf.common.command.Command;
 import org.eclipse.emf.common.command.CommandStack;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
@@ -15,13 +17,21 @@ import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 /**
  * Implementation of the Document Server Protocol using EMF resources.
  */
-public class EmfDocumentServer implements DocumentServerProtocol {
+public class EmfDocumentServer implements DocumentServerProtocol, DocumentClientProtocol.Consumer {
 
   private Map<String, Resource> openResources = new HashMap<>();
   private Map<Resource, CommandStack> commandStacks = new HashMap<>();
 
+  // for notifications of edits
+  private DocumentClientProtocol documentClient;
+
   protected Resource getResource(String documentUri) {
     return openResources.get(documentUri);
+  }
+
+  @Override
+  public void setDocumentClient(DocumentClientProtocol documentClient) {
+    this.documentClient = documentClient;
   }
 
   @Override
@@ -39,23 +49,28 @@ public class EmfDocumentServer implements DocumentServerProtocol {
   }
 
   @Override
-  public void documentEdited(DocumentEditedParams params) {
-  }
-
-  @Override
-  public CompletableFuture<Void> undoEdits(UndoEditsParams params) {
+  public CompletableFuture<DocumentEditedParams> undoEdits(UndoEditsParams params) {
     var commandStack = commandStacks.get(getResource(params.documentUri()));
     commandStack.undo();
-    return CompletableFuture.completedFuture(null);
+    var editParams = new DocumentEditedParams(params.documentUri());
+    return CompletableFuture.completedFuture(editParams);
   }
 
   @Override
-  public CompletableFuture<Void> redoEdits(RedoEditsParams params) {
+  public CompletableFuture<DocumentEditedParams> redoEdits(RedoEditsParams params) {
     var commandStack = commandStacks.get(getResource(params.documentUri()));
     commandStack.redo();
-    return CompletableFuture.completedFuture(null);
+    var editParams = new DocumentEditedParams(params.documentUri());
+    return CompletableFuture.completedFuture(editParams);
   }
 
+  protected DocumentEditedParams doCommand(Command command, Resource resource) {
+    var commandStack = commandStacks.get(resource);
+    commandStack.execute(command);
+    // command.getAffectedObjects();
+    return new DocumentEditedParams(resource.getURI().toString());
+  }
+  
   @Override
   public CompletableFuture<Void> saveDocument(SaveDocumentParams params) {
     var resource = getResource(params.documentUri());
@@ -80,6 +95,6 @@ public class EmfDocumentServer implements DocumentServerProtocol {
 
   public static void main(String[] args) {
     new ServerProtocolLauncher<DocumentServerProtocol>(DocumentServerProtocol.class, new EmfDocumentServer())
-        .startServer();
+        .startServer(System.in, System.out);
   }
 }

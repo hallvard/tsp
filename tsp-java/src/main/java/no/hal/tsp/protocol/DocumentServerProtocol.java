@@ -2,7 +2,6 @@ package no.hal.tsp.protocol;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
 /**
@@ -10,10 +9,6 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
  * Defines the protocol methods for document-based editors.
  */
 public interface DocumentServerProtocol {
-
-  public interface DocumentParams {
-    String documentUri();
-  }
 
   /**
    * Parameters for openDocument request.
@@ -32,17 +27,6 @@ public interface DocumentServerProtocol {
   CompletableFuture<Void> openDocument(OpenDocumentParams params);
 
   /**
-   * Parameters for documentEdited notification.
-   */
-  record DocumentEditedParams(
-      String documentUri
-  ) implements DocumentParams {
-  }
-
-  @JsonNotification("document/edited")
-  void documentEdited(DocumentEditedParams params);
-
-  /**
    * Parameters for undoEdits request.
    */
   record UndoEditsParams(
@@ -51,13 +35,21 @@ public interface DocumentServerProtocol {
   ) implements DocumentParams {}
 
   /**
+   * Parameters for documentEdited notification.
+   */
+  record DocumentEditedParams(
+      String documentUri
+  ) implements DocumentParams {
+  }
+
+  /**
    * Undoes a number of edits on a resource.
    * 
    * @param params Parameters containing the document URI and the count of edits to undo
    * @return A future indicating the completion of the undo operation
    */
   @JsonRequest("document/undoEdits")
-  CompletableFuture<Void> undoEdits(UndoEditsParams params);
+  CompletableFuture<DocumentEditedParams> undoEdits(UndoEditsParams params);
 
   /**
    * Parameters for undoEdits request.
@@ -74,7 +66,7 @@ public interface DocumentServerProtocol {
    * @return A future indicating the completion of the redo operation
    */
   @JsonRequest("document/redoEdits")
-  CompletableFuture<Void> redoEdits(RedoEditsParams params);
+  CompletableFuture<DocumentEditedParams> redoEdits(RedoEditsParams params);
 
   /**
    * Parameters for saveDocument request.

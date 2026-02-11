@@ -36,7 +36,9 @@ public class EmfEditTspServer extends AbstractTspServerImpl {
   }
 
   public static void main(String[] args) {
-    new ServerProtocolLauncher<TreeServerProtocol>(TreeServerProtocol.class, new EmfEditTspServer())
-        .startServer();
+    ServerProtocolLauncher.main(new String[]{
+      TreeServerProtocol.class.getName(),
+      EmfEditTspServer.class.getName()
+    });
   }
 }

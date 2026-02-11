@@ -98,9 +98,4 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
     }
     return children;
   }
-
-  public static void main(String[] args) {
-    new ServerProtocolLauncher<TreeServerProtocol>(TreeServerProtocol.class, new AbstractTspServerImpl())
-        .startServer();
-  }
 }
