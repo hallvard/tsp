@@ -8,10 +8,11 @@ import java.io.PipedOutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import no.hal.tsp.launcher.ServerProtocolLauncher;
+import no.hal.tsp.model.Label;
 import no.hal.tsp.model.TreeNode;
 import no.hal.tsp.protocol.TreeServerProtocol;
-import no.hal.tsp.protocol.TreeServerProtocol.GetChildrenParams;
-import no.hal.tsp.protocol.DocumentServerProtocol.OpenDocumentParams;
+import no.hal.tsp.protocol.TreeStructureApi.GetChildrenParams;
+import no.hal.tsp.protocol.DocumentApi.OpenDocumentParams;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,7 +88,7 @@ class TspServerLauncherTest {
     TreeNode root = rootNodes[0];
     assertEquals("object", root.type());
     assertEquals("ecore:EPackage", root.semanticType());
-    assertEquals("EPackage", root.label());
+    assertEquals(Label.ofText("EPackage"), root.label());
 
     // Call getChildren on the root with depth = 0
     GetChildrenParams childrenParams = new GetChildrenParams(openParams.documentUri(), root.id(), 0);

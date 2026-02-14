@@ -2,6 +2,7 @@ package no.hal.tsp.emf.server;
 
 import no.hal.tsp.protocol.TreeServerProtocol;
 import no.hal.tsp.launcher.ServerProtocolLauncher;
+import no.hal.tsp.model.Label;
 import org.eclipse.emf.ecore.provider.EcoreItemProviderAdapterFactory;
 import org.eclipse.emf.edit.provider.ComposedAdapterFactory;
 import org.eclipse.emf.edit.provider.IItemLabelProvider;
@@ -29,10 +30,10 @@ public class EmfEditTspServer extends AbstractTspServerImpl {
   }
 
   @Override
-  protected String labelFor(Object o) {
+  protected Label labelFor(Object o) {
     IItemLabelProvider labelProvider = (IItemLabelProvider) adapterFactory.adapt(o, IItemLabelProvider.class);
     var label = labelProvider.getText(o);
-    return label != null ? label : super.labelFor(o);
+    return label != null ? Label.ofText(label) : super.labelFor(o);
   }
 
   public static void main(String[] args) {

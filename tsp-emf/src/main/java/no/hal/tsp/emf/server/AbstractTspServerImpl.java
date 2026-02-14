@@ -2,7 +2,10 @@ package no.hal.tsp.emf.server;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import no.hal.tsp.launcher.ServerProtocolLauncher;
+import no.hal.tsp.model.Label;
+import no.hal.tsp.model.MenuItem;
+import no.hal.tsp.model.MenuItem.Command;
+import no.hal.tsp.model.MenuItem.Menu;
 import no.hal.tsp.model.TreeNode;
 import no.hal.tsp.protocol.TreeServerProtocol;
 import org.eclipse.emf.ecore.EObject;
@@ -45,11 +48,11 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
     return resource.getEObject(id);
   }
 
-  protected String labelFor(Object o) {
+  protected Label labelFor(Object o) {
     if (o instanceof EObject eObject) {
-      return eObject.eClass().getName();
+      return Label.ofText(eObject.eClass().getName());
     }
-    return String.valueOf(o);
+    return Label.ofText(String.valueOf(o));
   }
 
   protected String semanticTypeFor(Object o) {
@@ -97,5 +100,17 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
       }
     }
     return children;
+  }
+
+  @Override
+  public CompletableFuture<Menu> getCommandMenu(GetCommandMenuParams params) {
+    return CompletableFuture.completedFuture(new Menu(Label.ofText("Commands"),
+        new Command("delete", Label.ofText("Delete"))
+    ));
+  }
+
+  @Override
+  public CompletableFuture<DocumentEditedParams> doCommand(DoCommandParams params) {
+    return CompletableFuture.completedFuture(new DocumentEditedParams(params.documentUri()));
   }
 }

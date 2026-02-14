@@ -7,10 +7,10 @@ public record TreeNode(
     String id,
     String type,
     String semanticType,
-    String label,
+    Label label,
     TreeNode[] children
 ) {
-    public TreeNode(String id, String type, String semanticType, String label) {
+    public TreeNode(String id, String type, String semanticType, Label label) {
         this(id, type, semanticType, label, null);
     }
 }
