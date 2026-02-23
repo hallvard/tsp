@@ -2,6 +2,7 @@ package no.hal.tsp.emf.server;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import no.hal.tsp.model.Form;
 import no.hal.tsp.model.Label;
 import no.hal.tsp.model.MenuItem;
 import no.hal.tsp.model.MenuItem.Command;
@@ -107,6 +108,11 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
     return CompletableFuture.completedFuture(new Menu(Label.ofText("Commands"),
         new Command("delete", Label.ofText("Delete"))
     ));
+  }
+
+  @Override
+  public CompletableFuture<Form> getForm(GetFormParams params) {
+    return CompletableFuture.completedFuture(new Form(params.treeNodeId(), new Form.FormItem[0]));
   }
 
   @Override

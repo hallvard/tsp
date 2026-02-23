@@ -3,7 +3,7 @@
  * This runs in the webview context and handles tree rendering.
  */
 
-import { TreeNode, TreeProtocol, TreeProtocolMessage } from "./protocol";
+import { Form, FormItem, TreeNode, TreeProtocol, TreeProtocolMessage } from "./protocol";
 import { TreeView } from "./tree-view";
 
 declare function acquireVsCodeApi(): {
@@ -14,19 +14,65 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 let treeView: TreeView | null = null;
+let formView: HTMLElement | null = null;
 
 console.log('TSP Tree Editor webview script loaded');
 customElements.whenDefined('vscode-tree').then(() => {
-  treeView = new TreeView(document.getElementById('tree-view')!);
+  treeView = new TreeView(document.getElementById('tree-view')!, (treeNodeId) => {
+    submit<Form>(TreeProtocol.getForm({ treeNodeId }))
+        .then(form => renderForm(form));
+  });
+  formView = document.getElementById('form-view');
   console.log('Tree view element: ', treeView);
 
-  console.log('Sending openResource request for document: ', (window as any).documentUri);
-  submit<TreeNode[]>(TreeProtocol.openResource({ depth: 0 }))
+  console.log('Sending getChildren request for document: ', (window as any).documentUri);
+  submit<TreeNode[]>(TreeProtocol.getChildren({ treeNodeId: null, depth: 0 }))
       .then(nodes => {
-        console.log('Received response for openResource or getChildren: ', JSON.stringify(nodes));
+        console.log('Received response for getChildren: ', JSON.stringify(nodes));
         treeView?.setTreeNodeItems(nodes);
       });
 });
+
+function labelText(label: string | { text: string }): string {
+  return typeof label === 'string' ? label : (label?.text ?? '');
+}
+
+function renderForm(form: Form): void {
+  if (!formView) {
+    return;
+  }
+  formView.innerHTML = '';
+
+  const formElement = document.createElement('form');
+  formElement.setAttribute('data-form-id', form.id);
+
+  for (const item of form.items) {
+    formElement.appendChild(renderFormItem(item));
+  }
+
+  formView.appendChild(formElement);
+}
+
+function renderFormItem(item: FormItem): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'form-row';
+
+  const labelElement = document.createElement('label');
+  labelElement.textContent = labelText(item.label);
+  labelElement.htmlFor = item.id;
+  row.appendChild(labelElement);
+
+  if (item.kind === 'text') {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = item.id;
+    input.value = item.value ?? '';
+    input.disabled = !item.editable;
+    row.appendChild(input);
+  }
+
+  return row;
+}
 
 export const pendingRequests = new Map<number, { resolve: (result: any) => void; reject: (error: any) => void }>();
 

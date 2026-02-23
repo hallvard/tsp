@@ -67,6 +67,12 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    if (tspConnection) {
+      await tspConnection.sendRequest('document/openDocument', {
+        documentUri: document.uri.toString()
+      });
+    }
+
     // Setup webview options
     webviewPanel.webview.options = {
       enableScripts: true,
@@ -223,16 +229,33 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
         body {
             padding: 10px;
         }
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: start;
+      }
         h1 {
             font-size: 1.2em;
             margin-bottom: 10px;
         }
+      #form-view form {
+        display: grid;
+        gap: 8px;
+      }
+      .form-row {
+        display: grid;
+        gap: 4px;
+      }
     </style>
 </head>
 <body>
-    <vscode-tree id="tree-view">
+    <div class="layout">
+      <vscode-tree id="tree-view">
         <vscode-tree-item branch="false">Loading...</vscode-tree-item>
-    </vscode-tree>
+      </vscode-tree>
+      <div id="form-view"></div>
+    </div>
     <script type="module" nonce="${nonce}" src="${elementsUri}"></script>
     <script nonce="${nonce}">
         window.documentUri = ${JSON.stringify(documentUri.toString())};

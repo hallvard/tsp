@@ -1,10 +1,10 @@
-import { join } from "path";
 import { TreeNode, TreeProtocol } from "./protocol";
 import { submit } from "./main";
 
 export class TreeView {
 
   private tree : HTMLElement;
+  private onTreeNodeSelected?: (treeNodeId: string) => void;
 
   private observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -20,12 +20,22 @@ export class TreeView {
     });
   });
 
-  constructor(tree: HTMLElement) {
+  constructor(tree: HTMLElement, onTreeNodeSelected?: (treeNodeId: string) => void) {
     this.tree = tree;
+    this.onTreeNodeSelected = onTreeNodeSelected;
     this.observer.observe(tree, {
       attributes: true,
       attributeFilter: ['open'],
       subtree: true
+    });
+
+    this.tree.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null;
+      const treeItem = target?.closest('vscode-tree-item') as HTMLElement | null;
+      const nodeId = treeItem?.getAttribute('id');
+      if (nodeId) {
+        this.onTreeNodeSelected?.(nodeId);
+      }
     });
   }
 
@@ -38,9 +48,13 @@ export class TreeView {
     const treeItem = document.createElement('vscode-tree-item');
     treeItem.setAttribute('id', treeNode.id);
     treeItem.setAttribute('branch', String(treeNode.children !== undefined));
-    this.addTreeItemLabel(treeItem, treeNode.label);
+    this.addTreeItemLabel(treeItem, this.labelText(treeNode.label));
     this.addTreeNodeItems(treeNode.children, treeItem);
     return treeItem;
+  }
+
+  private labelText(label: string | { text: string }): string {
+    return typeof label === 'string' ? label : (label?.text ?? '');
   }
 
   private addTreeItemLabel(container: Element, label: string): void {

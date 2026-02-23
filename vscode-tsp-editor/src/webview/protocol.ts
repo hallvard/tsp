@@ -2,21 +2,44 @@
  * TypeScript protocol definitions matching the Java TSP protocol.
  */
 
+export interface Label {
+    text: string;
+}
+
 export interface TreeNode {
     id: string;
     type: string;
     semanticType: string;
-    label: string;
+    label: string | Label;
     children?: TreeNode[];
 }
 
-export interface OpenResourceParams {
+export interface GetChildrenParams {
+    treeNodeId: string | null;
     depth: number;
 }
 
-export interface GetChildrenParams {
+export interface Form {
+    id: string;
+    items: FormItem[];
+}
+
+export interface BaseFormItem {
+    id: string;
+    label: string | Label;
+    kind: string;
+    editable: boolean;
+}
+
+export interface TextFieldFormItem extends BaseFormItem {
+    kind: 'text';
+    value: string;
+}
+
+export type FormItem = TextFieldFormItem;
+
+export interface GetFormParams {
     treeNodeId: string;
-    depth: number;
 }
 
 export type TreeProtocolMessage<M extends string, P> = {
@@ -27,11 +50,11 @@ export type TreeProtocolMessage<M extends string, P> = {
 };
 
 export namespace TreeProtocol {
-    export function openResource(params: OpenResourceParams): TreeProtocolMessage<'tree/openResource', OpenResourceParams> {
-        return createTreeProtocolMessage<'tree/openResource', OpenResourceParams>('tree/openResource', params);
-    }
     export function getChildren(params: GetChildrenParams): TreeProtocolMessage<'tree/getChildren', GetChildrenParams> {
         return createTreeProtocolMessage<'tree/getChildren', GetChildrenParams>('tree/getChildren', params);
+    }
+    export function getForm(params: GetFormParams): TreeProtocolMessage<'tree/getForm', GetFormParams> {
+        return createTreeProtocolMessage<'tree/getForm', GetFormParams>('tree/getForm', params);
     }
 }
 

@@ -1,6 +1,7 @@
 package no.hal.tsp.protocol;
 
 import java.util.concurrent.CompletableFuture;
+import no.hal.tsp.model.Form;
 import no.hal.tsp.model.MenuItem.Menu;
 import no.hal.tsp.protocol.UndoRedoApi.DocumentEditedParams;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
@@ -27,6 +28,23 @@ public interface TreeEditApi {
    */
   @JsonRequest("tree/getCommandMenu")
   CompletableFuture<Menu> getCommandMenu(GetCommandMenuParams params);
+
+  /**
+   * Parameters for getForm request.
+   */
+  record GetFormParams(
+      String documentUri,
+      String treeNodeId
+  ) implements TreeNodeParams {}
+
+  /**
+   * Retrieve the form for a given tree node.
+   * 
+   * @param params Parameters containing a tree node reference
+   * @return A future containing the form for the specified tree node
+   */
+  @JsonRequest("tree/getForm")
+  CompletableFuture<Form> getForm(GetFormParams params);
 
   /**
    * Parameters for doCommand request.
