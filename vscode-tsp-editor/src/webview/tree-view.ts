@@ -116,12 +116,7 @@ export class TreeView {
       data?: Array<{ label: string; value: string }>;
       show?: boolean;
     };
-    const selectableItems = menuItems.map((item, index) => {
-      if (this.isTreeCommand(item)) {
-        return { label: item.label.text, value: `command:${item.id}` };
-      }
-      return { label: `${item.label.text}`, value: `submenu:${index}` };
-    });
+    const selectableItems = this.flattenMenuItems(menuItems);
     menuElement.data = selectableItems;
     menuElement.style.position = 'fixed';
     menuElement.style.left = `${x}px`;
@@ -141,12 +136,7 @@ export class TreeView {
         this.removeContextMenu();
         return;
       }
-      if (selectedValue.startsWith('submenu:')) {
-        const submenuIndex = Number(selectedValue.substring('submenu:'.length));
-        const selectedItem = menuItems[submenuIndex];
-        if (selectedItem && this.isTreeCommandMenu(selectedItem)) {
-          this.showContextMenu(x + 180, y + submenuIndex * 24, selectedItem.items ?? [], treeNodeId);
-        }
+      if (selectedValue.startsWith('noop:')) {
         return;
       }
       this.removeContextMenu();
@@ -157,6 +147,29 @@ export class TreeView {
     document.body.appendChild(menuElement);
     menuElement.show = true;
     this.contextMenu = menuElement;
+  }
+
+  private flattenMenuItems(
+      items: Array<TreeCommandMenu | TreeCommand>,
+      indentLevel = 0
+  ): Array<{ label: string; value: string }> {
+    const result: Array<{ label: string; value: string }> = [];
+    for (const item of items) {
+      const label = `${'\u00A0'.repeat(indentLevel * 4)}${item.label.text}`;
+      if (this.isTreeCommand(item)) {
+        result.push({
+          label: label,
+          value: `command:${item.id}`
+        });
+      } else if (this.isTreeCommandMenu(item)) {
+        result.push({
+          label: label,
+          value: `noop:${item.label.text}`
+        });
+        result.push(...this.flattenMenuItems(item.items ?? [], indentLevel + 1));
+      }
+    }
+    return result;
   }
 
   private isTreeCommand(item: TreeCommandMenu | TreeCommand): item is TreeCommand {

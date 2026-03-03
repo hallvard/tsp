@@ -6,6 +6,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -227,7 +228,7 @@ public class EmfEditTspServer extends AbstractTspServerImpl {
       return List.of();
     }
     var descriptors = editingDomain.getNewChildDescriptors(parent, null);
-    List<CreateCommandEntry> createCommands = new ArrayList<>();
+    var createCommands = new LinkedHashMap<String, CreateCommandEntry>();
     for (var descriptor : descriptors) {
       if (!(descriptor instanceof CommandParameter commandParameter)) {
         continue;
@@ -237,9 +238,10 @@ public class EmfEditTspServer extends AbstractTspServerImpl {
         continue;
       }
       var commandId = encodeCreateCommandId(commandParameter);
-      createCommands.add(new CreateCommandEntry(commandId, createLabelFor(commandParameter), createCommand));
+      createCommands.putIfAbsent(commandId,
+          new CreateCommandEntry(commandId, createLabelFor(commandParameter), createCommand));
     }
-    return createCommands;
+    return List.copyOf(createCommands.values());
   }
 
   private String encodeCreateCommandId(CommandParameter commandParameter) {
