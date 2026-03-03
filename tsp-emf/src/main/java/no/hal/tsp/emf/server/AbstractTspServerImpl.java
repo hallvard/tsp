@@ -1,20 +1,39 @@
 package no.hal.tsp.emf.server;
 
+import java.util.Map;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import no.hal.tsp.model.Label;
-import no.hal.tsp.model.MenuItem;
-import no.hal.tsp.model.MenuItem.Command;
-import no.hal.tsp.model.MenuItem.Menu;
 import no.hal.tsp.model.TreeNode;
 import no.hal.tsp.protocol.TreeServerProtocol;
+import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.resource.Resource;
 
 /**
  * Implementation of the Tree Structure Protocol server.
  */
-public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServerProtocol {
+public abstract class AbstractTspServerImpl extends EmfDocumentServer implements TreeServerProtocol {
+
+  private final Map<String, String> settings = new ConcurrentHashMap<>();
+
+  protected void updateSettings(Map<String, String> newSettings) {
+    settings.clear();
+    if (newSettings != null) {
+      settings.putAll(newSettings);
+    }
+  }
+
+  @Override
+  public CompletableFuture<Void> configure(ConfigureParams params) {
+    updateSettings(params.settings());
+    return CompletableFuture.completedFuture(null);
+  }
+
+  protected String setting(String key, String defaultValue) {
+    return settings.getOrDefault(key, defaultValue);
+  }
 
   @Override
   public CompletableFuture<TreeNode[]> getChildren(GetChildrenParams params) {
@@ -24,42 +43,31 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
     }
     Object o = params.treeNodeId() == null || params.treeNodeId().isEmpty()
         ? resource
-        : resource.getEObject(params.treeNodeId());
+        : objectForId(params.treeNodeId(), resource);
     if (o == null) {
       throw new IllegalArgumentException("EObject not found: " + params.treeNodeId());
     }
     return CompletableFuture.completedFuture(getChildrenN(o, params.depth()));
   }
 
-  protected String objectId(Object o) {
-    if (o instanceof EObject eObject) {
-      return eObject.eResource().getURIFragment(eObject);
-    }
-    return String.valueOf(o.hashCode());
-  }
-
-  protected EObject objectForId(String id, Object context) {
-    Resource resource = null;
-    if (context instanceof Resource r) {
-      resource = r;
-    } else if (context instanceof EObject eObject) {
-      resource = eObject.eResource();
-    }
-    return resource.getEObject(id);
-  }
-
   protected Label labelFor(Object o) {
     if (o instanceof EObject eObject) {
       return Label.ofText(eObject.eClass().getName());
     }
-    return Label.ofText(String.valueOf(o));
+    return o != null ? Label.ofText(String.valueOf(o)) : null;
+  }
+
+  protected String semanticTypeForType(EClassifier eClassifier) {
+    return eClassifier.getEPackage().getName() + ":" + eClassifier.getName();
   }
 
   protected String semanticTypeFor(Object o) {
     if (o instanceof EObject eObject) {
-      return eObject.eClass().getEPackage().getName() + ":" + eObject.eClass().getName();
+      return semanticTypeForType(eObject.eClass());
+    } else if (o != null) {
+      return o.getClass().getName();
     }
-    return o.getClass().getSimpleName();
+    return null;
   }
 
   protected List<?> childrenFor(Object o) {
@@ -100,17 +108,5 @@ public class AbstractTspServerImpl extends EmfDocumentServer implements TreeServ
       }
     }
     return children;
-  }
-
-  @Override
-  public CompletableFuture<Menu> getCommandMenu(GetCommandMenuParams params) {
-    return CompletableFuture.completedFuture(new Menu(Label.ofText("Commands"),
-        new Command("delete", Label.ofText("Delete"))
-    ));
-  }
-
-  @Override
-  public CompletableFuture<DocumentEditedParams> doCommand(DoCommandParams params) {
-    return CompletableFuture.completedFuture(new DocumentEditedParams(params.documentUri()));
   }
 }

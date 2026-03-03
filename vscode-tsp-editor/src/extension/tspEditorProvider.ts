@@ -2,17 +2,21 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as rpc from 'vscode-jsonrpc/node';
+import { DocumentProtocol, ServerProtocol } from './server-protocol';
 
 // Shared TSP server connection
 let tspConnection: rpc.MessageConnection | null = null;
 let tspServerProcess: cp.ChildProcess | null = null;
 const documentWebviews = new Map<string, vscode.WebviewPanel>();
+const openDocuments = new Map<string, vscode.CustomDocument>();
 
 export class TspEditorProvider implements vscode.CustomEditorProvider {
 
-  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent>();
+  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<vscode.CustomDocument>>();
 
   public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
+
+  private labelImagesUri: vscode.Uri;
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
     const provider = new TspEditorProvider(context);
@@ -44,7 +48,11 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     return providerRegistration;
   }
 
-  constructor(private readonly context: vscode.ExtensionContext) { }
+  constructor(private readonly context: vscode.ExtensionContext) {
+    this.labelImagesUri = context.globalStorageUri
+      ? vscode.Uri.joinPath(context.globalStorageUri, 'label-images')
+      : vscode.Uri.joinPath(context.extensionUri, 'label-images');
+  }
 
   public async openCustomDocument(
     uri: vscode.Uri,
@@ -54,12 +62,24 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     // Ensure TSP server is running
     await this.ensureTspServerStarted();
 
-    return {
+    const document = {
       uri,
       dispose: () => {
-        // Optionally send closeResource to TSP server
+        if (tspConnection) {
+          const closeRequest = DocumentProtocol.closeDocument({
+            documentUri: uri.toString(),
+          });
+          tspConnection.sendRequest(closeRequest.method, closeRequest.params).catch((error) => {
+            console.log('Error closing document in TSP server:', String(error));
+          });
+        }
+        openDocuments.delete(uri.toString());
       }
     };
+
+    openDocuments.set(uri.toString(), document);
+
+    return document;
   }
 
   public async resolveCustomEditor(
@@ -67,10 +87,18 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    await this.ensureTspServerStarted();
+
     // Setup webview options
     webviewPanel.webview.options = {
       enableScripts: true,
+      localResourceRoots: [
+        this.context.extensionUri,
+        this.labelImagesUri,
+      ],
     };
+
+    await this.configureServerForWebview(webviewPanel.webview);
 
     // Set the webview's HTML content
     webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document.uri);
@@ -122,14 +150,23 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
       return; // Already running
     }
 
+    await vscode.workspace.fs.createDirectory(this.labelImagesUri);
+
     const javaPath = 'java'; // Could be configured in settings
-    const tspServerJar = path.join(
+    const tspServerDir = path.join(
       this.context.extensionPath,
-      'tsp-server',
-      'tsp-emf-1.0.0-SNAPSHOT-jar-with-dependencies.jar'
+      'tsp-server'
+    );
+    const tspServerJar = path.join(
+      tspServerDir,
+      'tsp-emf-1.0.0-SNAPSHOT-standalone.jar'
     );
 
-    tspServerProcess = cp.spawn(javaPath, ['-jar', tspServerJar]);
+    tspServerProcess = cp.spawn(
+      javaPath,
+      ['-jar', tspServerJar],
+      { cwd: tspServerDir }
+    );
 
     // Create JSON-RPC connection
     const reader = new rpc.StreamMessageReader(tspServerProcess.stdout!);
@@ -150,7 +187,58 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     // Start listening
     tspConnection.listen();
 
+    tspConnection.onNotification('document/edited', (params: {
+      documentUri?: string,
+      kind?: 'NORMAL' | 'UNDO' | 'REDO',
+      affectedObjectIds?: string[]
+    }) => {
+      console.log(`document/edited ${JSON.stringify(params)}`);
+      if (!params.documentUri) {
+        return;
+      }
+      const kind = params.kind ?? 'NORMAL';
+      documentWebviews.get(params.documentUri)?.webview.postMessage({
+        jsonrpc: '2.0',
+        method: 'document/edited',
+        params: {
+          documentUri: params.documentUri,
+          kind,
+          affectedObjectIds: params.affectedObjectIds ?? []
+        }
+      });
+      if (kind !== 'NORMAL') {
+        return;
+      }
+      const document = openDocuments.get(params.documentUri);
+      if (document) {
+        this._onDidChangeCustomDocument.fire({
+          document,
+          label: 'TSP Edit',
+          undo: async () => {
+            await this.performUndo(document);
+          },
+          redo: async () => {
+            await this.performRedo(document);
+          }
+        });
+      }
+    });
+
     console.log('TSP server started');
+  }
+
+  private async configureServerForWebview(webview: vscode.Webview): Promise<void> {
+    if (!tspConnection) {
+      return;
+    }
+    const labelImagesUri = webview.asWebviewUri(this.labelImagesUri).toString();
+    const configureRequest = ServerProtocol.configure({
+      settings: {
+        'tsp.label.images.dir': this.labelImagesUri.fsPath,
+        'tsp.label.images.uri': labelImagesUri,
+      }
+    });
+    await tspConnection.sendRequest(configureRequest.method, configureRequest.params);
   }
 
   // Save support - called when user saves or auto-saves
@@ -158,9 +246,14 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     document: vscode.CustomDocument,
     _cancellation: vscode.CancellationToken
   ): Promise<void> {
-    // TSP server will handle persistence
-    // Send save command to server or mark as saved
-    console.log('Saving document:', document.uri.fsPath);
+    if (!tspConnection) {
+      throw new Error('TSP server connection is not available');
+    }
+    const saveRequest = DocumentProtocol.saveDocument({
+      documentUri: document.uri.toString(),
+    });
+    await tspConnection.sendRequest(saveRequest.method, saveRequest.params);
+    console.log('Saved document:', document.uri.fsPath);
   }
 
   public async saveCustomDocumentAs(
@@ -168,8 +261,18 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
     destination: vscode.Uri,
     _cancellation: vscode.CancellationToken
   ): Promise<void> {
-    // Handle "Save As" operation
-    console.log('Saving document as:', destination.fsPath);
+    if (!tspConnection) {
+      throw new Error('TSP server connection is not available');
+    }
+    const saveAsRequest = DocumentProtocol.saveDocument({
+      documentUri: document.uri.toString(),
+      newUri: {
+        newUri: destination.toString(),
+        useNewUri: true,
+      }
+    });
+    await tspConnection.sendRequest(saveAsRequest.method, saveAsRequest.params);
+    console.log('Saved document as:', destination.fsPath);
   }
 
   public async revertCustomDocument(
@@ -178,6 +281,22 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
   ): Promise<void> {
     // Reload document from disk
     console.log('Reverting document:', document.uri.fsPath);
+  }
+
+  public async undoCustomDocument(
+    document: vscode.CustomDocument,
+    _context: vscode.CustomDocumentEditEvent,
+    _cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    await this.performUndo(document);
+  }
+
+  public async redoCustomDocument(
+    document: vscode.CustomDocument,
+    _context: vscode.CustomDocumentEditEvent,
+    _cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    await this.performRedo(document);
   }
 
   public async backupCustomDocument(
@@ -190,6 +309,30 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
       id: context.destination.toString(),
       delete: () => { }
     };
+  }
+
+  private async performUndo(document: vscode.CustomDocument): Promise<void> {
+    if (!tspConnection) {
+      throw new Error('TSP server connection is not available');
+    }
+    const documentUri = document.uri.toString();
+    const undoRequest = DocumentProtocol.undoEdits({
+      documentUri,
+      count: 1,
+    });
+    await tspConnection.sendRequest(undoRequest.method, undoRequest.params);
+  }
+
+  private async performRedo(document: vscode.CustomDocument): Promise<void> {
+    if (!tspConnection) {
+      throw new Error('TSP server connection is not available');
+    }
+    const documentUri = document.uri.toString();
+    const redoRequest = DocumentProtocol.redoEdits({
+      documentUri,
+      count: 1,
+    });
+    await tspConnection.sendRequest(redoRequest.method, redoRequest.params);
   }
 
   private getHtmlForWebview(webview: vscode.Webview, documentUri: vscode.Uri): string {
@@ -209,6 +352,10 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.js')
     );
 
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview.css')
+    );
+
     // Use a nonce for security
     const nonce = getNonce();
 
@@ -217,22 +364,20 @@ export class TspEditorProvider implements vscode.CustomEditorProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
     <title>TSP Editor</title>
-    <style>
-        body {
-            padding: 10px;
-        }
-        h1 {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="${styleUri}">
 </head>
 <body>
-    <vscode-tree id="tree-view">
-        <vscode-tree-item branch="false">Loading...</vscode-tree-item>
-    </vscode-tree>
+    <vscode-split-layout initialHandlePosition="30%" resetOnDblClick="true">
+        <vscode-tree id="tree-view" slot="start">
+            <vscode-tree-item branch="false">Loading...</vscode-tree-item>
+        </vscode-tree>
+        <form id="form-view" slot="end">
+            <h3>No properties</h3>
+        </form>
+    </vscode-split-layout>
+
     <script type="module" nonce="${nonce}" src="${elementsUri}"></script>
     <script nonce="${nonce}">
         window.documentUri = ${JSON.stringify(documentUri.toString())};

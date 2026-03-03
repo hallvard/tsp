@@ -1,6 +1,5 @@
 package no.hal.tsp.protocol;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
@@ -32,7 +31,7 @@ public interface DocumentApi {
    */
   record SaveDocumentParams(
       String documentUri,
-      Optional<NewUriOptions> newUri
+      NewUriOptions newUri
   ) implements DocumentParams {}
 
   record NewUriOptions(

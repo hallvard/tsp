@@ -1,5 +1,7 @@
 package no.hal.tsp.protocol;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 
@@ -8,6 +10,12 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
  * Defines the protocol methods for document-based editors.
  */
 public interface UndoRedoApi {
+
+  enum EditKind {
+    UNDO,
+    NORMAL,
+    REDO
+  }
 
   /**
    * Parameters for undoEdits request.
@@ -21,8 +29,16 @@ public interface UndoRedoApi {
    * Parameters for documentEdited notification.
    */
   record DocumentEditedParams(
-      String documentUri
+      String documentUri,
+      String kind,
+      Collection<String> affectedObjectIds
   ) implements DocumentParams {
+    public DocumentEditedParams(String documentUri) {
+      this(documentUri, EditKind.NORMAL.name(), List.of());
+    }
+    public DocumentEditedParams(String documentUri, EditKind kind) {
+      this(documentUri, kind.name(), List.of());
+    }
   }
 
   /**

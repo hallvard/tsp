@@ -3,8 +3,11 @@
  * This runs in the webview context and handles tree rendering.
  */
 
-import { TreeNode, TreeProtocol, TreeProtocolMessage } from "./protocol";
+import { FormView } from "./form-view";
+import { ProtocolMessage } from "./protocol";
+import { TreeNode, TreeProtocol } from "./tree-protocol";
 import { TreeView } from "./tree-view";
+import "./styles.css";
 
 declare function acquireVsCodeApi(): {
   postMessage(message: any): void;
@@ -14,23 +17,39 @@ declare function acquireVsCodeApi(): {
 
 const vscode = acquireVsCodeApi();
 let treeView: TreeView | null = null;
+let formView: FormView | null = null;
 
 console.log('TSP Tree Editor webview script loaded');
 customElements.whenDefined('vscode-tree').then(() => {
   treeView = new TreeView(document.getElementById('tree-view')!);
-  console.log('Tree view element: ', treeView);
+  formView = new FormView(document.getElementById('form-view')!);
 
+  treeView.setSelectionHandler((treeNodeId, isSelected) => {
+    if (isSelected) {
+      formView?.handleTreeNodeSelection(treeNodeId, isSelected);
+    }
+  });
+  
   console.log('Sending openResource request for document: ', (window as any).documentUri);
-  submit<TreeNode[]>(TreeProtocol.openResource({ depth: 0 }))
-      .then(nodes => {
-        console.log('Received response for openResource or getChildren: ', JSON.stringify(nodes));
-        treeView?.setTreeNodeItems(nodes);
+  submit<void>(TreeProtocol.openDocument({ depth: 0 }))
+      .then(() => {
+        submit<TreeNode[]>(TreeProtocol.getChildren({ treeNodeId: null, depth: 0 }))
+            .then(nodes => {
+              console.log('Received response for openResource or getChildren: ', JSON.stringify(nodes));
+              treeView?.setTreeNodeItems(nodes);
+            });
       });
 });
 
 export const pendingRequests = new Map<number, { resolve: (result: any) => void; reject: (error: any) => void }>();
 
-export function submit<T>(message: TreeProtocolMessage<string, any>): Promise<T> {
+interface DocumentEditedNotification {
+  documentUri?: string;
+  kind?: 'NORMAL' | 'UNDO' | 'REDO';
+  affectedObjectIds?: string[];
+}
+
+export function submit<T>(message: ProtocolMessage<string, any>): Promise<T> {
   return new Promise((resolve, reject) => {
     pendingRequests.set(message.id, { resolve, reject });
     vscode.postMessage(message);
@@ -51,5 +70,9 @@ window.addEventListener('message', (event) => {
         pending.reject(message.error);
       }
     }
+  } else if (message.jsonrpc === '2.0' && message.method === 'document/edited') {
+    const params = (message.params ?? {}) as DocumentEditedNotification;
+    treeView?.handleDocumentEdited(params.affectedObjectIds);
+    formView?.handleDocumentEdited(params.affectedObjectIds);
   }
 });

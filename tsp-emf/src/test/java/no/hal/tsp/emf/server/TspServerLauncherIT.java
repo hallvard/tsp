@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit;
 import no.hal.tsp.launcher.ServerProtocolLauncher;
 import no.hal.tsp.model.Label;
 import no.hal.tsp.model.TreeNode;
+import no.hal.tsp.protocol.DocumentApi.OpenDocumentParams;
 import no.hal.tsp.protocol.TreeServerProtocol;
 import no.hal.tsp.protocol.TreeStructureApi.GetChildrenParams;
-import no.hal.tsp.protocol.DocumentApi.OpenDocumentParams;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Test for the TSP Server Launcher.
  */
-class TspServerLauncherTest {
+class TspServerLauncherIT {
 
   private Thread serverThread;
   private TreeServerProtocol client;
@@ -38,7 +38,9 @@ class TspServerLauncherTest {
     clientInput = new PipedInputStream(serverOutput);
 
     // Start server in a separate thread
-    var launcher = new ServerProtocolLauncher<TreeServerProtocol>(TreeServerProtocol.class, new AbstractTspServerImpl());
+    var launcher = new ServerProtocolLauncher<TreeServerProtocol>(TreeServerProtocol.class,
+      new EmfEditTspServer()
+    );
     serverThread = new Thread(() -> {
       launcher.startServer(serverInput, serverOutput);
     });
@@ -88,7 +90,7 @@ class TspServerLauncherTest {
     TreeNode root = rootNodes[0];
     assertEquals("object", root.type());
     assertEquals("ecore:EPackage", root.semanticType());
-    assertEquals(Label.ofText("EPackage"), root.label());
+    assertEquals(Label.ofText("tournament"), root.label());
 
     // Call getChildren on the root with depth = 0
     GetChildrenParams childrenParams = new GetChildrenParams(openParams.documentUri(), root.id(), 0);
